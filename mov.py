@@ -250,6 +250,20 @@ def process_images():
     upload_progress_bar["maximum"] = len(valid_barcodes) + len(valid_autorizaciones)
     send_to_database(valid_barcodes, valid_autorizaciones, selected_farmacia.get(), failed_images)
 
+# def enhance_image(image, attempt):
+#     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+#     if attempt == 1:
+#         gray = cv2.equalizeHist(gray)
+#     elif attempt == 2:
+#         gray = cv2.medianBlur(gray, 3)
+#     elif attempt == 3:
+#         kernel = np.array([[0, -1, 0], [-1, 5,-1], [0, -1, 0]])
+#         gray = cv2.filter2D(gray, -1, kernel)
+#     elif attempt == 4:
+#         gray = cv2.GaussianBlur(gray, (5, 5), 0)
+#     _, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+#     return thresh
+
 def enhance_image(image, attempt):
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     if attempt == 1:
@@ -257,12 +271,14 @@ def enhance_image(image, attempt):
     elif attempt == 2:
         gray = cv2.medianBlur(gray, 3)
     elif attempt == 3:
-        kernel = np.array([[0, -1, 0], [-1, 5,-1], [0, -1, 0]])
+        kernel = np.array([[0, -1, 0], [-1, 5, -1], [0, -1, 0]])
         gray = cv2.filter2D(gray, -1, kernel)
     elif attempt == 4:
         gray = cv2.GaussianBlur(gray, (5, 5), 0)
-    _, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-    return thresh
+        _, gray = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    return gray
+
+
 
 # def process_failed_image(image_path):
 #     image = cv2.imread(image_path)
@@ -380,7 +396,11 @@ def process_failed_image(image_path):
                 for angle in [0, 90, 180, 270]:
                     rotated_image = rotate_image(unsharp_image, angle)
                     rotated_enhanced_image = rotate_image(enhanced_image, angle)
-                    barcodes = decode(rotated_image, symbols=[ZBarSymbol.CODE128, ZBarSymbol.CODE39, ZBarSymbol.EAN13, ZBarSymbol.EAN8, ZBarSymbol.PDF417])
+                    barcodes = decode(rotated_image, symbols=[
+                        ZBarSymbol.CODE128, ZBarSymbol.CODE39, ZBarSymbol.EAN13, ZBarSymbol.EAN8, ZBarSymbol.PDF417,
+                        ZBarSymbol.QRCODE, ZBarSymbol.ISBN10, ZBarSymbol.ISBN13, ZBarSymbol.I25, ZBarSymbol.UPCA,
+                        ZBarSymbol.UPCE
+                    ])
                     barcodes += decode(rotated_enhanced_image, symbols=[ZBarSymbol.CODE128, ZBarSymbol.CODE39, ZBarSymbol.EAN13, ZBarSymbol.EAN8, ZBarSymbol.PDF417])
                     for barcode_obj in barcodes:
                         barcode_data = barcode_obj.data.decode('utf-8')
@@ -471,6 +491,49 @@ def process_failed_image(image_path):
 #         print(f'Error procesando la imagen {image_path}: {e}')
 #     return count, autorizacion_count, barcode, autorizacion
 
+# def read_barcodes_from_image(image_path):
+#     image = cv2.imread(image_path)
+    
+#     if image is None:
+#         print(f"Error: No se pudo cargar la imagen {image_path}. Verifica la ruta o la integridad del archivo.")
+#         return 0, 0, None, None
+
+#     height, width = image.shape[:2]
+#     cropped_image = image[0:int(height * 0.2), 0:width]
+#     count = 0
+#     autorizacion_count = 0
+#     barcode = None
+#     autorizacion = None
+#     try:
+#         angles = [0, 90, 180, 270]
+#         for attempt in range(1, 5):
+#             enhanced_image = enhance_image(cropped_image, attempt)
+#             for angle in angles:
+#                 rotated_image = rotate_image(cropped_image, angle)
+#                 rotated_enhanced_image = rotate_image(enhanced_image, angle)
+#                 barcodes = decode(rotated_image, symbols=[ZBarSymbol.CODE128, ZBarSymbol.CODE39, ZBarSymbol.EAN13, ZBarSymbol.EAN8, ZBarSymbol.PDF417])
+#                 barcodes += decode(rotated_enhanced_image, symbols=[ZBarSymbol.CODE128, ZBarSymbol.CODE39, ZBarSymbol.EAN13, ZBarSymbol.EAN8, ZBarSymbol.PDF417])
+#                 for barcode_obj in barcodes:
+#                     barcode_data = barcode_obj.data.decode('utf-8')
+#                     if barcode_data.startswith('8'):
+#                         print(f'Código de barras: {barcode_data}')
+#                         count += 1
+#                         barcode = barcode_data
+#                     elif barcode_data.startswith('0'):
+#                         print(f'Código de autorización: {barcode_data}')
+#                         autorizacion_count += 1
+#                         autorizacion = barcode_data
+#                     if barcode or autorizacion:
+#                         break
+#                 if barcode or autorizacion:
+#                     break
+#             if barcode or autorizacion:
+#                 break
+#         if not barcode and not autorizacion:
+#             print(f'No se encontró un código de barras válido en la imagen {image_path}')
+#     except Exception as e:
+#         print(f'Error procesando la imagen {image_path}: {e}')
+#     return count, autorizacion_count, barcode, autorizacion
 def read_barcodes_from_image(image_path):
     image = cv2.imread(image_path)
     
